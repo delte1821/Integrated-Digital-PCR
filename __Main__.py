@@ -4,12 +4,13 @@
 # 2021-02-19 Created
 # 2021-02-22 Updated FluImaging module
 # 2021-02-23 Updated DigitalAnalysis module
+# 2021-03-05 Git update
+# 2021-03-06 GPS information update
 
 # -----------------------------------------------------------------------------------------
 
 # Import required packages
 import bluetooth
-import lightblue
 import time
 from datetime import datetime as dt
 import os
@@ -49,7 +50,7 @@ db_file = "/home/pi/Desktop/IoT dPCR/Savefiles/IoT-dPCR.db"
 # Initializing bluetooth communication variables
 val    = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 buffer = ""
-i      = 2
+i      = 0
 j      = 0
 
 # -----------------------------------------------------------------------------------------
@@ -59,8 +60,6 @@ while True:
     # Get data via bluetooth communication
     Serial = client_socket.recv(1024).decode('utf-8')
     print(Serial)
-    Code   = Serial[0:2]
-    print("Code: ", Code)
     
     # Convert data to array
     while (i < len(Serial)):
@@ -74,19 +73,22 @@ while True:
             i     += 1
             
     # Initializing count variables
-    i = 2
+    i = 0
     j = 0
+    
+    Code = val[0]
+    print("Code: ", Code)
     
     # Thermalcyclling modules
     if(Code == "TC"):
         print("Thermalcycling activation")
-        Temp1 = int(val[0])
-        Temp2 = int(val[1])
-        Temp3 = int(val[2])
-        Time1 = int(val[3])
-        Time2 = int(val[4])
-        Time3 = int(val[5])
-        Ncyc  = int(val[6])
+        Temp1 = int(val[1])
+        Temp2 = int(val[2])
+        Temp3 = int(val[3])
+        Time1 = int(val[4])
+        Time2 = int(val[5])
+        Time3 = int(val[6])
+        Ncyc  = int(val[7])
         
         # Activate temperature profile
         dataname = WriteTprof(Ncyc, 10, 50, Time1, Temp1, Time2, Temp2, Time3, Temp3, SaveFolder)
@@ -106,11 +108,11 @@ while True:
     # Fluorescence imaing modules
     if(Code == "FI"):
         print("Fluimaging activation")
-        ISO = int(val[0])
-        ExpTime = int(val[1])
-        ShuTime = int(val[2])
-        LivTime = int(val[3])
-        Flu = str(val[4])
+        ISO     = int(val[1])
+        ExpTime = int(val[2])
+        ShuTime = int(val[3])
+        LivTime = int(val[4])
+        Flu     = str(val[5])
         
         # Activate modules
         LiveImaging(ISO, ShuTime, LivTime)
@@ -127,11 +129,11 @@ while True:
 
     if(Code == "AN"):
         print("Analysis activation")
-        Detparm1 = val[0]
-        Detparm2 = val[1]
-        Minrad = val[2]
-        Maxrad = val[3]
-        Mindist = val[4]
+        Detparm1 = val[1]
+        Detparm2 = val[2]
+        Minrad   = val[3]
+        Maxrad   = val[4]
+        Mindist  = val[5]
         
         # Activate modules
         DPCRanalysis(Detparm1, Detparm2, Minrad, Maxrad, Mindist, Img_dir, dataname)
@@ -143,6 +145,18 @@ while True:
         print("Maxrad = ", Maxrad)
         print("Mindist = ", Mindist)
         '''
+        
+    if(Code == "ID"):
+        print("Client information")
+        ID = val[1]
+        Longitude = val[3]
+        Latitude = val[4]
+        Altitude = val[5]
+        
+        print("ID: ", ID)
+        print("Longitude: ", Longitude)
+        print("Latitude", Latitude)
+        print("Altitude", Altitude)
 
 # -----------------------------------------------------------------------------------------
 
