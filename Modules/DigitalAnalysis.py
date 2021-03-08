@@ -1,6 +1,14 @@
+import sqlite3
+import cv2
+import os
+import numpy as np
+import math
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy.signal import butter, lfilter, find_peaks
+import random
 
-
-def DPCRanalysis(Detparm1, Detparm2, Minrad, Maxrad, Mindist, Img_dir, dataname):
+def Imganalysis(Detparm1, Detparm2, Minrad, Maxrad, Mindist, Flu, img_dir, ID):
     
     # Define physical variables
     wellheight  = 100    # Heigth of microwells in um
@@ -12,33 +20,19 @@ def DPCRanalysis(Detparm1, Detparm2, Minrad, Maxrad, Mindist, Img_dir, dataname)
     param21     = Detparm2     # Accumulatoir threshold for circles, the lower the more false circles are recognised
     minRadius1  = Minrad     # Minimum radius of found circles in pixcels
     maxRadius1  = Maxrad     # Maximum radius of found circles in pixcels
-    minDist1    = MinDist    # Minimum distance between two circle centers in pixels
+    minDist1    = Mindist    # Minimum distance between two circle centers in pixels
     spec        = 4    # Which histogram to be plotted 4 = green / 5 = red / 6 = normalized
-    
-    # File directory
-    tag = ".jpeg"
-    tag2 = "-marked"
-    
-    # Initialize calculation variables
-    Npos = 0
-    Nneg = 0
-    Ntot = 0
-    
-    
-
-def dPCRanalysis(p11, p21, minD, minR, maxR, Flu, Fname):
+          
     # Defining Variables can be changed by user
-
     Nimg        = 1    # Number of images
-    wellheight  = 20    # Heigth of microwells in um
-    wellradius  = 15    # Radius of microwells in um
+    wellheight  = 100    # Heigth of microwells in um
+    wellradius  = 50    # Radius of microwells in um
 
 
     # Defining appendixes required for opening images
-    name1 = Flu +"_"+Fname         # Appendix for reference dye images
-    name2 = name1         # Appendix for fluorescence images
-    name3 = ".jpeg"      # Appendix for image filetype
-    tag   = "-marked"   # Appendix for images in which found circles are marked
+    img_name = ID + "_" + Flu         # Appendix for reference dye images
+    tag1 = ".jpeg"      # Appendix for image filetype
+    tag2  = "-marked"   # Appendix for images in which found circles are marked
     
     # Defining constants that should not be changed by the user
     Npos = 0.0 # Counter for positive wells, float so probability can be calculated
@@ -46,51 +40,35 @@ def dPCRanalysis(p11, p21, minD, minR, maxR, Flu, Fname):
     Nbub = 0.0 # Counter for bubbles
     
     # Creating database for Saving results
-    dbname = 'Images/'+ name1 + ".db"
+    dbname = "/home/pi/Desktop/IoT-dPCR/Savefiles" + "/" + "IoT-dPCR.db"
     conn = sqlite3.connect(dbname)
     c = conn.cursor()
     c.execute('PRAGMA max_page_count = 2147483646')
     c.execute('DROP TABLE IF EXISTS Wells')
     c.execute('DROP TABLE IF EXISTS Concentration')
-    c.execute('CREATE TABLE IF NOT EXISTS Wells (ImmageNumber, Xcoordinate, Ycoordinate, Radius, GreenIntensity, RedIntensity, NormIntensity)')
+    c.execute('CREATE TABLE IF NOT EXISTS Wells (ImmageNumber, Xcoordinate, Ycoordinate, Radius, Intensity)')
     c.execute('CREATE TABLE IF NOT EXISTS Concentration (Threshold_min, Threshold_max, PosWells, NegWells, Propability, LowBound, UppBound, Conc)')
     conn.commit()
     
     for i in range(0,Nimg):
-    
-        # Print current image for debugging purposes
-        print("Analyzing ",name1,".jpeg")
 
         # Creating filenames for images to be opened
-        nameRef = name1 + name3
-        nameReftag = name1 + tag + name3
-        nameFlu = name2 + name3
-        nameFlutag = name2 + tag + name3
-
-        # Converting images for detection of circles and measurement of flourescence
-        # Reference dye image
-        imgRef  = cv2.imread('Images/'+nameRef,0)     # Opening image
-        imgRef  = cv2.medianBlur(imgRef,5)  # Smothening image data
-        imgRef2 = cv2.imread('Images/'+nameRef)       # Image for marking circles in
-        imgRef3 = cv2.imread('Images/'+nameRef)       # Image for marking circles in
+        nameFlu = img_dir + "/" + img_name + "_" + str(i+1) + tag1 
+        nameFlutag = img_dir + "/" + img_name + "_" + str(i+1) + tag2 + tag1
+        
+        # Print current image for debugging purposes
+        print("Analyzing ",nameFlu)
 
         # Fluorescence dye image
-        imgFlu  = cv2.imread('Images/'+nameFlu)       # Opening image
-        imgFlu2 = cv2.imread('Images/'+nameFlu)       # Image for marking circles in
-
+        imgFlu  = cv2.imread(nameFlu, 0)    # Opening image
+        imgFlu  = cv2.medianBlur(imgFlu,5)  # Smothening image data
+        imgFlu2 = cv2.imread(nameFlu)       # Image for marking circles in
+        imgFlu3 = cv2.imread(nameFlu)       # Image for detecting intensity
+        
         # Fitting circles using Hough transform from package cv2
         # function calls as follows: cv2.HoughCircles(image, method, dp, minDist, circles, param1, param2, minRadius, maxRadius)
-        circles = cv2.HoughCircles(imgRef,cv2.HOUGH_GRADIENT,dp1,minDist1,param1=param11,param2=param21,minRadius=minRadius1,maxRadius=maxRadius1)
-
-        # Drawing fitted circles to reference dye image
-        circles = np.uint16(np.around(circles)) # Preparing data for plotting
-        for j in circles[0,:]:
-            # draw the outer circle
-            cv2.circle(imgRef2,(j[0],j[1]),j[2],(255,0,0),0)
-            # draw the center of the circle
-            cv2.circle(imgRef2,(j[0],j[1]),1,(255,0,0),1)
-        # Saving image with marked circles
-        cv2.imwrite(nameReftag,imgRef2)
+        print(os.path.isfile(nameFlu))
+        circles = cv2.HoughCircles(imgFlu,cv2.HOUGH_GRADIENT,dp1,minDist1,param1=param11,param2=param21,minRadius=minRadius1,maxRadius=maxRadius1)
     
         # Drawing fitted circles to reference dye image
         circles = np.uint16(np.around(circles)) # Preparing data for plotting
@@ -105,21 +83,12 @@ def dPCRanalysis(p11, p21, minD, minR, maxR, Flu, Fname):
         # Measuring intensity in marked cicles
         intensity = []  # Empty list to save circle intensities into
         for j in circles[0,:]:
-            intensity.append(CircleIntensity(j[0],j[1],j[2],imgFlu,Flu))
-
-        # Measuring intensity in marked cicles for reference dye
-        intensity_ref = []  # Empty list to save circle intensities into
-        for j in circles[0,:]:
-            intensity_ref.append(CircleIntensity(j[0],j[1],j[2],imgRef3,Flu))
-
-        intensity_norm = list(map(truediv, intensity, intensity_ref))
-
-    
+            intensity.append(CircleIntensity(j[0],j[1],j[2],imgFlu3,Flu))   
  
         # Saving data to output database
         k = 0     # Running index to sync intensity list with circle list
         for j in circles[0,:]:
-            c.execute('''INSERT INTO Wells VALUES (?, ?, ?, ?, ?, ?, ?)''', (str(i+1) ,str(j[0]) ,str(j[1]) ,str(j[2]) ,str(intensity[k]) ,str(intensity_ref[k]) ,str(intensity_norm[k]))) 
+            c.execute('''INSERT INTO Wells VALUES (?, ?, ?, ?, ?)''', (str(i+1) ,str(j[0]) ,str(j[1]) ,str(j[2]) ,str(intensity[k]))) 
             k = k+1
 
     conn.commit()
@@ -132,7 +101,7 @@ def dPCRanalysis(p11, p21, minD, minR, maxR, Flu, Fname):
     plotdata = list(map(float, data))
 
     # Plotting histogram
-    flu_min, flu_max, Histname =Histogram(data, plotdata, name1)
+    flu_min, flu_max, Histname =Histogram(data, plotdata, img_dir, img_name)
 
     # Counting positive and negative partitions
     for x in plotdata:
@@ -151,8 +120,8 @@ def dPCRanalysis(p11, p21, minD, minR, maxR, Flu, Fname):
     # Callculation of concentrations according to Poission distribution
     #Npart = Npos + Nneg # Total number of detected wells
     if Npos == 0:
-        Npos = random.random()*5
-    Npart = 25600 - Nbub
+        Npos = 1
+    Npart = 1080 - Nbub
     Nneg = Npart - Npos
     #Npart = Npos + Nneg
     pHat = Npos / Npart # Estimated propability of positive well
@@ -161,53 +130,31 @@ def dPCRanalysis(p11, p21, minD, minR, maxR, Flu, Fname):
     C_est, C_low, C_upp = ConcCallculation(pHat,Npart,VolWell) # Callculation of concentrations according to predifined function
     Stdev = C_est - C_low
     CV = 100 * Stdev / C_est
-
-    # Display results
-    # Update histogram
-    HistImg1 = Image.open('Images/'+Histname)
-    HistImg2 = ImageTk.PhotoImage(HistImg1)
-    Hist1.configure(image=HistImg2)
-    Hist1.image = HistImg2
-
-    # Update dPCR results
-    df1 = tk.Label(root, justify='right',text=(str(Npart)), font="Arial 12", fg='blue', width=18)
-    df1.grid(row=21, column=3)
-    df1.update_idletasks()
-
-    df2 = tk.Label(root, justify='right',text=(str(Npos)), font="Arial 12", fg='blue', width=18)
-    df2.grid(row=23, column=3)
-    df2.update_idletasks()
     
-    ppHat = round(ppHat, 2)
-    df3 = tk.Label(root, justify='right',text=(str(ppHat) + " %"), font="Arial 12", fg='blue', width=18)
-    df3.grid(row=25, column=3)
-    df3.update_idletasks()
-    
-    C_est = round(C_est, 1)
-    df4 = tk.Label(root, justify='right',text=(str(C_est) + " copies/uL"), font="Arial 12 bold", fg='red', width=18)
-    df4.grid(row=27, column=3)
-    df4.update_idletasks()
+    print("Concentration: ", C_est)
+    print("Stdev: ", Stdev)
 
-    c.execute(''' INSERT INTO Concentration VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', (flu_min, flu_max, Npos, Nneg, pHat, int(C_low), int(C_upp), int(C_est)))
+    c.execute(''' INSERT INTO Concentration VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', (flu_min, flu_max, Npos, Nneg, pHat, C_low, C_upp, C_est))
     conn.commit()
     conn.close()
     
-    return(Histname)
+    return(C_est)
 
 #---------------------------------------------------------------------------
 # Function for Callculating flourescence intensity inside of cicle
 
 def CircleIntensity(centerx,centery,radius,image, color):
+    '''
     # Callculates the intensity indside of a circle
-    #
+    
     # Parameters:
     # centerx = x-coordinte of circle
     # centery = y-coordinate of circle
     # radius = Radius of circle
     # image = image for callculating intensity (brightness saved as 8 bit, i.e. from 0 to 255
-    #
-    # Returns:
+    
     # Intensity = average intensity value of circle in the tested image
+    '''
 
     if color == "B":
         coval = 0
@@ -246,7 +193,7 @@ def CircleIntensity(centerx,centery,radius,image, color):
 # ==============================================================================================================
 
 # Function for plotting histograms
-def Histogram(Data,Ldata, Hname):
+def Histogram(Data,Ldata, img_dir, img_name):
     ax, bx = plt.subplots()
     ax = sns.distplot(Ldata, kde=True, hist=False)  # Distubution histogram
     x = ax.get_lines()[0].get_xdata() # Get the x data of the distribution
@@ -271,13 +218,10 @@ def Histogram(Data,Ldata, Hname):
     cx = plt.axvline(x=thr_min, color='r', linestyle='--')
     dx = plt.axvline(x=thr_max, color='r', linestyle='--')
 
-    hName = Hname + "-plot" + ".jpeg"
+    hName = img_dir + "/" + img_name + "-plot" + ".jpeg"
     plt.xlabel("Normalized intensity")
-    plt.savefig('Images/'+hName)
-    im = cv2.imread('Images/'+hName)
-    im2 = cv2.resize(im, dsize=(320, 240), interpolation=cv2.INTER_AREA)
-    cv2.imwrite('Images/'+hName, im2)
-    cv2.imwrite("Histogram-sample.jpeg", im2)
+    plt.savefig(hName)
+    
     return thr_min, thr_max, hName
 # ===============================================================================================================
 
@@ -285,6 +229,7 @@ def Histogram(Data,Ldata, Hname):
 
 # Function for esimating Concentration
 def ConcCallculation(pHat,Npart,Vol):
+    '''
     # Function callculating the concentration of outcome of dPCR
     #
     # Parameters:
@@ -297,7 +242,7 @@ def ConcCallculation(pHat,Npart,Vol):
     # C_low = lower confidence intervall of calculated concentration (95% z-distribution) in # particles/uL
     # C_upp = upper confidence intervall of calculated concentration (95% z-distribution) in # particles/uL
     #
-    #######################################################
+    '''
     
     # Defingin constants
     zc = 1.96   # 95% confidence intervall z-distribution
@@ -319,7 +264,8 @@ def ConcCallculation(pHat,Npart,Vol):
     C_low = lambda_low / Vol    # Estimated lower bound of concentration
     C_upp = lambda_upp / Vol    # Estimated higher bound of concentration
     
-    # Filtering
-    
     return C_est, C_low, C_upp
 #=============================================================================
+if __name__ == '__main__':
+    #Imganalysis(Detparm1, Detparm2, Minrad, Maxrad, Mindist, Flu, img_dir, ID)
+    Imganalysis(10, 10, 1, 10, 1, 'G', "/home/pi/Desktop/IoT-dPCR/Savefiles/Images/2021_03_08", 'test1')

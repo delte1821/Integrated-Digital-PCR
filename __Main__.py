@@ -1,11 +1,12 @@
 # Module and documentation by Ji Wook Choi, BioNanoTechnologyLab(BNTL), Sogang University
-#
+
 # History:
 # 2021-02-19 Created
 # 2021-02-22 Updated FluImaging module
 # 2021-02-23 Updated DigitalAnalysis module
 # 2021-03-05 Git update
 # 2021-03-06 GPS information update
+# 2021-03-08 Fluorescence imaging & analysis update
 
 # -----------------------------------------------------------------------------------------
 
@@ -25,13 +26,7 @@ from Modules.DigitalAnalysis import *
 path       = os.getcwd()
 SaveFolder = path + "/Savefiles"
 date       = dt.now().strftime("%Y_%m_%d")
-File_dir   = SaveFolder + "/" + date
 
-# Make file directory & suffix
-if not os.path.isdir(File_dir):
-    os.mkdir(File_dir)
-    print(File_dir)
-suff = len(os.listdir(File_dir))
 
 # -----------------------------------------------------------------------------------------
 
@@ -116,7 +111,7 @@ while True:
         
         # Activate modules
         LiveImaging(ISO, ShuTime, LivTime)
-        Img_dir = FluImaging(ISO, ShuTime, ExpTime, Flu, File_dir, dataname) # Get image directory
+        Img_dir = FluImaging(ISO, ShuTime, ExpTime, Flu, SaveFolder, ID) # Get image directory
         
         '''
         # Print input variables
@@ -136,7 +131,7 @@ while True:
         Mindist  = val[5]
         
         # Activate modules
-        DPCRanalysis(Detparm1, Detparm2, Minrad, Maxrad, Mindist, Img_dir, dataname)
+        Conc = Imganalysis(Detparm1, Detparm2, Minrad, Maxrad, Mindist, Img_dir, dataname, ID)
         
         '''
         print("Detparm1 = ", Detparm1)

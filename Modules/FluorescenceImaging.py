@@ -66,17 +66,16 @@ def LiveImaging(ISO, SHU, tLive):
 
 # -----------------------------------------------------------------------------------------
 
-def FluImaging(ISO, tSHU, tEXP, Flu, File_dir, dataname):
+def FluImaging(ISO, tSHU, tEXP, Flu, File_dir, ID):
     
-    # File directory
-    #SaveFolder = "/home/pi/Desktop/IoT dPCR/Images"
+    # Make file directory & IDix
     date       = dt.now().strftime("%Y_%m_%d")
-    Img_dir   = File_dir + "/Images"
+    Img_dir   = File_dir + "/Images" + "/" + date
     tag = ".jpeg"
     
     if not os.path.isdir(Img_dir):
         os.mkdir(Img_dir)
-    print(File_dir)
+        print(Img_dir)
     
     #Initialization
     camera= picamera.PiCamera()
@@ -84,14 +83,14 @@ def FluImaging(ISO, tSHU, tEXP, Flu, File_dir, dataname):
     # Determine LED pin & file name
     if (Flu == "G"):
         PINLED = 20
-        Img_name = Img_dir + "/" + dataname + "_ G"
+        Img_name = Img_dir + "/" + ID + "_G"
         print(Img_name)
     elif (Flu == "R"):
         PINLED = 21
-        Img_name  = Img_dir + "/" + dataname + "_ R"
+        Img_name  = Img_dir + "/" + ID + "_R"
     elif (Flu == "Y"):
         PINLED = 19
-        Img_name  = Img_dir + "/" + dataname + "_ Y"
+        Img_name  = Img_dir + "/" + ID + "_Y"
     else:
         print("Error: FluType")
 
@@ -148,4 +147,4 @@ def CropImg(Img_Name):
 
 if __name__ == '__main__':
     #LiveImaging(1600, 6000, 30)
-    FluImaging(1600, 6000, 3, 'G', 'data001')
+    FluImaging(1600, 6000, 3, 'G',"/home/pi/Desktop/IoT-dPCR/Savefiles", 'test1')

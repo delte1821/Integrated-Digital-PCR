@@ -12,6 +12,8 @@ from numpy import convolve
 import random
 from fractions import Fraction
 
+# -----------------------------------------------------------------------------------------
+
 # Create function for measurment from ADC (8 channels 0 to 7)
 def readadc(adcnum, clockpin, mosipin, misopin, cspin):
     # Checking for correct channel
@@ -49,6 +51,8 @@ def readadc(adcnum, clockpin, mosipin, misopin, cspin):
     adcout = adcout - 2*4095
     return adcout
 
+# -----------------------------------------------------------------------------------------
+
 # Function for converting ADC to voltage
 def ADCtoV(ADC, Vref):
     
@@ -61,6 +65,8 @@ def ADCtoV(ADC, Vref):
     ADC = float(ADC)    # making sure ADC reading is a float\
     Voltage = ADC/4095 * Vref   # conversion to voltage
     return Voltage
+
+# -----------------------------------------------------------------------------------------
 
 def VtoT(Vin, Vsupp, R1, R2, R3, a, b):
     
@@ -82,6 +88,8 @@ def VtoT(Vin, Vsupp, R1, R2, R3, a, b):
     T = (Rmes - a) / b                  # converting to temperature
         
     return T
+
+# -----------------------------------------------------------------------------------------
 
 # PID controller function
 def PIDcont(Setpoint, MeasPoint,Kp,Ki,Kd,t,i0,e0):
@@ -129,11 +137,15 @@ def PIDcont(Setpoint, MeasPoint,Kp,Ki,Kd,t,i0,e0):
 
     return (uPID,e,I)
 
+# -----------------------------------------------------------------------------------------
+
 # Function for movingaverage
 def movingaverage(values,window):
     weights = np.repeat(1.0,window)/window
     sma = np.convolve(values,weights,'valid')
     return sma
+
+# -----------------------------------------------------------------------------------------
 
 # Thermal cycling
 def WriteTprof(Ncyc,tHS,Ths,tDE,Tde,tAN,Tan,tEX,Tex, File_dir):
@@ -144,23 +156,12 @@ def WriteTprof(Ncyc,tHS,Ths,tDE,Tde,tAN,Tan,tEX,Tex, File_dir):
     
     # SQL operations
     dbname = File_dir + "/" + 'IoT-dPCR.db'
+    print(dbname)
     conn = sqlite3.connect(dbname)    # Connecting to database
     c = conn.cursor()                           # Creating cursor for access
-    # Creating table with experiments index (if it does not exist)
-    c.execute('CREATE TABLE IF NOT EXISTS experiments (Date varchar(255), Dataname varchar(255))')
-
-
-    # Creating table in SQL database to save data to
-    date = datetime.date.today()                # Determining current data
-    rows = c.execute('''select * from experiments''')   # Finding previous number of experiments
-    rows = rows.fetchall()
-    rows = len(rows)+1                          # Incrementing by one to create new unique index
-    dataname = 'data_'+str(rows)                # Unique name for table containging cycling data
-    c.execute('Insert INTO experiments (Date, Dataname) VALUES (?,?)',(date,dataname))  # Adding thermal data table to db
-    conn.commit()                               # Comminting change to db
 
     # Creating table for Experimental data
-    c.execute('CREATE TABLE IF NOT EXISTS ' + dataname + ' (Time, ADC, Volt, MeasT, SetT, PID, PWM, Temp)')
+    c.execute('CREATE TABLE IF NOT EXISTS ' + 'ThermalCycling' + ' (Time, ADC, Volt, PID, PWM, SetTemp, MeasTemp)')
     
     # Defining parameters
     variables = c.execute('SELECT Valuenumber FROM Variables')
@@ -286,8 +287,8 @@ def WriteTprof(Ncyc,tHS,Ths,tDE,Tde,tAN,Tan,tEX,Tex, File_dir):
         func_PWM.ChangeDutyCycle(dcycle_PWM)
             
         # Writing data to database
-        c.execute('INSERT INTO ' +dataname + ' VALUES ('+ str(Time1) +',' + str(trim_pot) +', ' + str(voltage) + ', ' + str(Temperature) + ', ' + str(setT) + ', ' + str(uPID) + ', ' + str(dcycle_PWM) + ', 0)')
-              
+        c.execute('INSERT INTO ' + 'ThermalCycling' + ' VALUES ('+ str(Time1) +',' + str(trim_pot) +', ' + str(voltage) + ', ' + str(uPID) + ', ' + str(dcycle_PWM) + ', ' + str(setT) + ', ' + str(Temperature) + ')')
+        
         time.sleep(Waitt)
 
         # Updating timers and moving to next step / cycle if required
@@ -308,27 +309,14 @@ def WriteTprof(Ncyc,tHS,Ths,tDE,Tde,tAN,Tan,tEX,Tex, File_dir):
     # Clearing GPIOs and stopping LEDs
     func_PWM.stop() # Stoping PWM
     GPIO.cleanup()
-
-    # Callculating filtered Temperature
-    # Retriving Temperature Data
     conn.commit()
-    Temp = c.execute('Select MeasT from ' + dataname)   # Getting data from db
-    Temp = [item[0] for item in Temp.fetchall()]        # Removing touples
-
-    # Filtering
-    b, a = butter(1,w, 'low')                           # Designing Filter
-    Tempfill = lfilter(b,a,Temp)                          # Filtering data
-    Tempfill = movingaverage(Tempfill,4)
-
-    # Adding data to db
-    for i in range(0,len(Tempfill)):
-        c.execute('UPDATE '+dataname+' SET Temp = ? WHERE MeasT = ?',(Tempfill[i]+0.45,Temp[i]))   # Updating last collumn
-    conn.commit()                                                                   # Commiting changes
-    
     conn.close()
+
     print('Run Complete')
-    return dataname
+    return
+
+# -----------------------------------------------------------------------------------------
 
 if __name__ == '__main__':
     # WriteTprof(Ncyc,tHS,Ths,tDE,Tde,tAN,Tan,tEX,Tex, File_dir)
-    WriteTprof(1, 1, 10, 1, 20, 1, 30, 1, 40, '/home/pi/Desktop/IoT dPCR/Savefiles')
+    WriteTprof(1, 1, 10, 1, 20, 1, 30, 1, 40, '/home/pi/Desktop/IoT-dPCR/Savefiles')
