@@ -15,6 +15,7 @@ import bluetooth
 import time
 from datetime import datetime as dt
 import os
+import sqlite3
 from Modules.BT_Initializing import *
 from Modules.ThermalCycling import *
 from Modules.FluorescenceImaging import *
@@ -48,6 +49,15 @@ buffer = ""
 i      = 0
 j      = 0
 
+# Database file initializing
+dbname = "/home/pi/Desktop/IoT-dPCR/Savefiles" + "/" + "IoT-dPCR.db"
+conn = sqlite3.connect(dbname)
+c = conn.cursor()
+c.execute('DROP TABLE IF EXISTS Client')
+c.execute('CREATE TABLE IF NOT EXISTS Client (ID, Longitude, Latitude, Altitude)')
+conn.commit()
+
+
 # -----------------------------------------------------------------------------------------
 
 # Start module activation
@@ -60,17 +70,22 @@ while True:
     while (i < len(Serial)):
         if (Serial[i] != "_"):
             buffer += Serial[i]
-            i      += 1
+            if (buffer == '\r' or buffer =='\n'):
+                buffer = ""
+            i += 1
         else:
             val[j] = buffer
             buffer = ""
+            print("var[", j,"]: ", val[j] )
             j     += 1
             i     += 1
+            
             
     # Initializing count variables
     i = 0
     j = 0
     
+    print("val: ", val)
     Code = val[0]
     print("Code: ", Code)
     
@@ -84,9 +99,10 @@ while True:
         Time2 = int(val[5])
         Time3 = int(val[6])
         Ncyc  = int(val[7])
+        ID    = str(val[8])
         
         # Activate temperature profile
-        dataname = WriteTprof(Ncyc, 10, 50, Time1, Temp1, Time2, Temp2, Time3, Temp3, SaveFolder)
+        dataname = WriteTprof(Ncyc, 10, 50, Time1, Temp1, Time2, Temp2, Time3, Temp3, SaveFolder, ID)
         print(dataname) 
         
         '''
@@ -100,14 +116,18 @@ while True:
         print("Ncyc  = ", Ncyc)
         '''
         
+        val    = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        Code = val[0]
+        
     # Fluorescence imaing modules
-    if(Code == "FI"):
+    elif(Code == "FI"):
         print("Fluimaging activation")
         ISO     = int(val[1])
         ExpTime = int(val[2])
         ShuTime = int(val[3])
         LivTime = int(val[4])
         Flu     = str(val[5])
+        ID      = str(val[6])
         
         # Activate modules
         LiveImaging(ISO, ShuTime, LivTime)
@@ -120,15 +140,19 @@ while True:
         print("ShuTime = ", ShuTime)
         print("LivTime = ", LivTime)
         print("Flu = ", Flu)
-        '''        
+        '''
+        
+        val    = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        Code = val[0]
 
-    if(Code == "AN"):
+    elif(Code == "AN"):
         print("Analysis activation")
         Detparm1 = val[1]
         Detparm2 = val[2]
         Minrad   = val[3]
         Maxrad   = val[4]
         Mindist  = val[5]
+        ID       = val[6]
         
         # Activate modules
         Conc = Imganalysis(Detparm1, Detparm2, Minrad, Maxrad, Mindist, Img_dir, dataname, ID)
@@ -141,17 +165,33 @@ while True:
         print("Mindist = ", Mindist)
         '''
         
-    if(Code == "ID"):
+        val    = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        Code = val[0]
+        
+    elif(Code == "ID"):
         print("Client information")
+        # Get GPS information from smartphone
         ID = val[1]
         Longitude = val[3]
         Latitude = val[4]
         Altitude = val[5]
+        Serverid = val[6]
+        
+        # Write GPS information to database file
+        conn = sqlite3.connect(dbname)
+        c = conn.cursor()
+        c.execute('''INSERT INTO Client VALUES (?, ?, ?, ?)''', (str(ID) ,str(Longitude) ,str(Latitude) ,str(Altitude))) 
+        conn.commit()
+        conn.close()
         
         print("ID: ", ID)
         print("Longitude: ", Longitude)
-        print("Latitude", Latitude)
-        print("Altitude", Altitude)
+        print("Latitude: ", Latitude)
+        print("Altitude: ", Altitude)
+        print("Server id: ", Serverid)
+        
+        val    = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        Code = val[0]
 
 # -----------------------------------------------------------------------------------------
 
