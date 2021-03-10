@@ -6,7 +6,8 @@
 # 2021-02-23 Updated DigitalAnalysis module
 # 2021-03-05 Git update
 # 2021-03-06 GPS information update
-# 2021-03-08 Fluorescence imaging & analysis update
+# 2021-03-08 Fluorescence imaging & analysis updates
+# 2021-03-10 Initializing file added
 
 # -----------------------------------------------------------------------------------------
 
@@ -16,32 +17,16 @@ import time
 from datetime import datetime as dt
 import os
 import sqlite3
-from Modules.BT_Initializing import *
+from __init__ import *
 from Modules.ThermalCycling import *
 from Modules.FluorescenceImaging import *
 from Modules.DigitalAnalysis import *
 
 # -----------------------------------------------------------------------------------------
-
-# File directory
-path       = os.getcwd()
-SaveFolder = path + "/Savefiles"
-date       = dt.now().strftime("%Y_%m_%d")
-
-
-# -----------------------------------------------------------------------------------------
-
-# Initializing bluetooth socket
-BT_init()
-print("Waiting for connection...")
-server_socket=bluetooth.BluetoothSocket( bluetooth.RFCOMM )
-port = 1
-server_socket.bind(("",port))
-server_socket.listen(1)
-client_socket,address = server_socket.accept()
-print("Accepted connection from ",address)
-
-db_file = "/home/pi/Desktop/IoT dPCR/Savefiles/IoT-dPCR.db"
+# Initializing
+SaveFolder, date = FD_init() # File directory initializing
+client_socket,address = BT_init() # Bluetooth initializing
+db_dir = DB_init() # Database initializing
 
 # Initializing bluetooth communication variables
 val    = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -49,24 +34,14 @@ buffer = ""
 i      = 0
 j      = 0
 
-# Database file initializing
-dbname = "/home/pi/Desktop/IoT-dPCR/Savefiles" + "/" + "IoT-dPCR.db"
-conn = sqlite3.connect(dbname)
-c = conn.cursor()
-c.execute('DROP TABLE IF EXISTS Client')
-c.execute('CREATE TABLE IF NOT EXISTS Client (ID, Longitude, Latitude, Altitude)')
-conn.commit()
-
-
 # -----------------------------------------------------------------------------------------
-
 # Start module activation
 while True:
     # Get data via bluetooth communication
     Serial = client_socket.recv(1024).decode('utf-8')
     print(Serial)
     
-    # Convert data to array
+    # Convert serial data to list
     while (i < len(Serial)):
         if (Serial[i] != "_"):
             buffer += Serial[i]
@@ -76,16 +51,12 @@ while True:
         else:
             val[j] = buffer
             buffer = ""
-            print("var[", j,"]: ", val[j] )
             j     += 1
             i     += 1
             
-            
-    # Initializing count variables
+    # Update count variables
     i = 0
     j = 0
-    
-    print("val: ", val)
     Code = val[0]
     print("Code: ", Code)
     
@@ -103,10 +74,10 @@ while True:
         
         # Activate temperature profile
         dataname = WriteTprof(Ncyc, 10, 50, Time1, Temp1, Time2, Temp2, Time3, Temp3, SaveFolder, ID)
-        print(dataname) 
-        
+         
         '''
         # Print input variables
+        print(dataname)
         print("Temp1 = ", Temp1)
         print("Temp2 = ", Temp2)
         print("Temp3 = ", Temp3)
@@ -116,6 +87,7 @@ while True:
         print("Ncyc  = ", Ncyc)
         '''
         
+        # Update variables
         val    = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         Code = val[0]
         
@@ -141,7 +113,7 @@ while True:
         print("LivTime = ", LivTime)
         print("Flu = ", Flu)
         '''
-        
+        # Update variables
         val    = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         Code = val[0]
 
@@ -158,6 +130,7 @@ while True:
         Conc = Imganalysis(Detparm1, Detparm2, Minrad, Maxrad, Mindist, Img_dir, dataname, ID)
         
         '''
+        # Print input variables
         print("Detparm1 = ", Detparm1)
         print("Detparm2 = ", Detparm2)
         print("Minrad = ", Minrad)
@@ -165,6 +138,7 @@ while True:
         print("Mindist = ", Mindist)
         '''
         
+        # Update variables
         val    = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         Code = val[0]
         
@@ -178,22 +152,27 @@ while True:
         Serverid = val[6]
         
         # Write GPS information to database file
-        conn = sqlite3.connect(dbname)
+        conn = sqlite3.connect(db_dir)
         c = conn.cursor()
         c.execute('''INSERT INTO Client VALUES (?, ?, ?, ?)''', (str(ID) ,str(Longitude) ,str(Latitude) ,str(Altitude))) 
         conn.commit()
         conn.close()
         
+        '''
+        # Print input variables
         print("ID: ", ID)
         print("Longitude: ", Longitude)
         print("Latitude: ", Latitude)
         print("Altitude: ", Altitude)
         print("Server id: ", Serverid)
+        '''
         
+        # Update variables
         val    = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         Code = val[0]
 
 # -----------------------------------------------------------------------------------------
-
 client_socket.close()
 server_socket.close()
+conn.commit()
+conn.close()
