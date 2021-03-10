@@ -303,9 +303,6 @@ def WriteTprof(Ncyc,tHS,Ths,tDE,Tde,tAN,Tan,tEX,Tex, File_dir):
                 e = 0           # Reseting error for PID
                 I = 0           # Reseting integral for PID
         
-        
-            
-        
     # Clearing GPIOs and stopping LEDs
     func_PWM.stop() # Stoping PWM
     GPIO.cleanup()
